@@ -64,11 +64,7 @@ jobs:
       - name: Commit and push updated donnees.json
         id: commit_push
         run: |
-          # BUG CORRIGÉ : "git diff --quiet -- donnees.json" ne voit rien pour
-          # un fichier non suivi par git (cas du tout premier run). On force
-          # d'abord un "git add" puis on compare l'index à HEAD avec --cached,
-          # ce qui détecte correctement un fichier neuf comme un fichier modifié.
-          git add donnees.json
+          git add donnees.json 
           if git diff --cached --quiet -- donnees.json; then
             echo "No token changes detected in donnees.json"
             exit 0
@@ -78,13 +74,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: refresh discord media tokens and history"
           git push
-
-      # BUG CORRIGÉ : cette étape était auparavant placée juste après
-      # "Fetch Discord media", donc "if: failure()" ne pouvait détecter QUE
-      # l'échec de recupere_medias.js. En la déplaçant en toute dernière
-      # position, failure() reflète l'état de l'ensemble du job : un échec
-      # de calcul_stats.js, envoi_webhook.js ou du commit/push déclenche
-      # désormais aussi le MP d'alerte.
+      
+      # BUG CORRIGÉ : "git diff --quiet -- donnees.json" ne voit rien pour un fichier non suivi par git (cas du tout premier run). On force d'abord un "git add" puis on compare l'index à HEAD avec --cached, ce qui détecte correctement un fichier neuf comme un fichier modifié.
+      # BUG CORRIGÉ : cette étape était auparavant placée juste après "Fetch Discord media", donc "if: failure()" ne pouvait détecter QUE l'échec de recupere_medias.js. En la déplaçant en toute dernière position, failure() reflète l'état de l'ensemble du job : un échec de calcul_stats.js, envoi_webhook.js ou du commit/push déclenche désormais aussi le MP d'alerte.
       - name: Send Direct Message on Failure
         if: failure()
         env:

@@ -2,8 +2,8 @@ name: Sync Discord Media
 
 on:
   schedule:
-    - cron: "0 * * * *" # S'exécute automatiquement TOUTES LES HEURES
-  workflow_dispatch: # Te permet de lancer la synchronisation manuellement depuis GitHub si besoin
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,7 +19,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          # Node 18 est End-of-Life (plus aucun correctif de sécurité depuis
+          # avril 2025) et Node 20 l'est devenu à son tour en avril 2026.
+          # Node 22 est la ligne LTS actuellement maintenue.
+          node-version: "22"
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -33,6 +36,7 @@ jobs:
           fi
 
       - name: Fetch Discord media and update data
+        id: fetch_media
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
@@ -40,58 +44,10 @@ jobs:
 
       - name: Compute sync stats
         id: stats
-        run: |
-          node <<'NODE'
-          const fs = require("node:fs");
-          
-          function getMediaId(url) {
-            if (!url) return null;
-            const parts = url.split('?')[0].split('/');
-            return parts[parts.length - 2] || url;
-          }
-
-          const oldData = JSON.parse(fs.readFileSync("donnees.previous.json", "utf8"));
-          const newData = JSON.parse(fs.readFileSync("donnees.json", "utf8"));
-          
-          const oldMap = new Map();
-          oldData.forEach(url => { const id = getMediaId(url); if(id) oldMap.set(id, url); });
-
-          const newMap = new Map();
-          newData.forEach(url => { const id = getMediaId(url); if(id) newMap.set(id, url); });
-
-          let added = 0;
-          let removed = 0;
-          let refreshed = 0;
-
-          // On cherche les nouveautés ou les rafraîchissements de jetons
-          for (const [id, newUrl] of newMap.entries()) {
-            if (!oldMap.has(id)) {
-              added++;
-            } else {
-              const oldUrl = oldMap.get(id);
-              // Si l'ID est identique mais que l'URL complète a changé, c'est un jeton expirable mis à jour par Discord
-              if (oldUrl !== newUrl) {
-                refreshed++;
-              }
-            }
-          }
-          
-          for (const id of oldMap.keys()) {
-            if (!newMap.has(id)) removed++;
-          }
-
-          const now = new Date();
-          const unixTs = Math.floor(now.getTime() / 1000);
-
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `added=${added}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `removed=${removed}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `refreshed=${refreshed}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `total=${newData.length}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `timestamp=${now.toISOString()}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `timestamp_unix=${unixTs}\n`);
-          NODE
+        run: node calcul_stats.js
 
       - name: Send Discord notification
+        id: webhook
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
@@ -103,75 +59,43 @@ jobs:
           TOTAL: ${{ steps.stats.outputs.total }}
           TIMESTAMP: ${{ steps.stats.outputs.timestamp }}
           TIMESTAMP_UNIX: ${{ steps.stats.outputs.timestamp_unix }}
-        run: |
-          node <<'NODE'
-          const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-          if (!webhookUrl) {
-            console.log("No webhook URL configured. Skipping notification.");
-            process.exit(0);
-          }
-
-          const added = parseInt(process.env.ADDED || "0", 10);
-          const removed = parseInt(process.env.REMOVED || "0", 10);
-          const refreshed = parseInt(process.env.REFRESHED || "0", 10);
-          const total = parseInt(process.env.TOTAL || "0", 10);
-          const timestamp = process.env.TIMESTAMP;
-          const timestampUnix = process.env.TIMESTAMP_UNIX;
-
-          const repoUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
-          const runUrl = `${repoUrl}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-          const siteUrl = "https://Nathan-Pro-FR.github.io/Discord_Github_Action/"; // Optionnel : Remplace par le lien final de ton site si tu veux
-
-          const payload = {
-            username: "Gallery Sync Bot",
-            embeds: [
-              {
-                title: "🔄 Synchronisation Galerie Discord",
-                color: 0xec4899, // Rose néon cyberpunk
-                
-                // Intégration de ta nouvelle description avec Date complète et temps relatif
-                description: `La galerie a été mise à jour le : <t:${timestampUnix}:F> • <t:${timestampUnix}:R>`,
-                
-                fields: [
-                  { name: "➕ Ajoutés", value: String(added), inline: true },
-                  { name: "➖ Supprimés", value: String(removed), inline: true },
-                  { name: "🔄 Jetons rafraîchis", value: String(refreshed), inline: true },
-                  { name: "📊 Total médias", value: String(total), inline: true },
-                  { name: "🌐 Site web", value: `[Ouvrir la galerie](${siteUrl})`, inline: false },
-                  { name: "🛠️ GitHub Action", value: `[Voir le rapport de run](${runUrl})`, inline: false }
-                ],
-                footer: {
-                  text: `Statut: Réussi • ${timestamp}`
-                }
-              }
-            ]
-          };
-
-          fetch(webhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }).then(async (response) => {
-            if (!response.ok) {
-              const body = await response.text();
-              throw new Error(`Discord webhook error ${response.status}: ${body}`);
-            }
-            console.log("Notification envoyée avec succès sur Discord.");
-          }).catch((error) => {
-            console.error(error);
-            process.exit(1);
-          });
-          NODE
+        run: node envoi_webhook.js
 
       - name: Commit and push updated donnees.json
+        id: commit_push
         run: |
-          if git diff --quiet -- donnees.json; then
+          # BUG CORRIGÉ : "git diff --quiet -- donnees.json" ne voit rien pour
+          # un fichier non suivi par git (cas du tout premier run). On force
+          # d'abord un "git add" puis on compare l'index à HEAD avec --cached,
+          # ce qui détecte correctement un fichier neuf comme un fichier modifié.
+          git add donnees.json
+          if git diff --cached --quiet -- donnees.json; then
             echo "No token changes detected in donnees.json"
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add donnees.json
           git commit -m "chore: refresh discord media tokens and history"
           git push
+
+      # BUG CORRIGÉ : cette étape était auparavant placée juste après
+      # "Fetch Discord media", donc "if: failure()" ne pouvait détecter QUE
+      # l'échec de recupere_medias.js. En la déplaçant en toute dernière
+      # position, failure() reflète l'état de l'ensemble du job : un échec
+      # de calcul_stats.js, envoi_webhook.js ou du commit/push déclenche
+      # désormais aussi le MP d'alerte.
+      - name: Send Direct Message on Failure
+        if: failure()
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
+          ERROR_MESSAGE: |
+            La synchronisation des médias a échoué (statut du job : ${{ job.status }}).
+            - Récupération Discord (recupere_medias.js) : ${{ steps.fetch_media.outcome }}
+            - Calcul des statistiques (calcul_stats.js) : ${{ steps.stats.outcome }}
+            - Envoi du webhook (envoi_webhook.js) : ${{ steps.webhook.outcome }}
+            - Commit/push donnees.json : ${{ steps.commit_push.outcome }}
+            Vérifiez les logs du workflow pour plus de détails.
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: node notif_erreur_mp.js

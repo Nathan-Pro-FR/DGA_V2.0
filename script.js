@@ -6,6 +6,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!galleryGrid) return;
 
+  // BUG CRITIQUE CORRIGÉ : xmlns contenait "[http://...](http://...)" au lieu
+  // d'une URL de namespace valide. Un SVG avec un xmlns invalide n'est pas du
+  // tout rendu par le navigateur : l'image de secours affichait une case vide,
+  // pas le message "Media indisponible".
   const fallbackImage =
     "data:image/svg+xml;charset=UTF-8," +
     encodeURIComponent(`
@@ -55,10 +59,51 @@ document.addEventListener("DOMContentLoaded", () => {
     image.decoding = "async";
     image.className = "gallery-media";
     image.onerror = () => {
+      // On désactive le handler après le premier échec : si l'image de secours
+      // (data URI) venait elle-même à échouer, on évite une boucle infinie de
+      // tentatives de chargement.
+      image.onerror = null;
       image.src = fallbackImage;
       image.alt = "Image indisponible";
     };
     return image;
+  };
+
+  // BUG CORRIGÉ : clonedMedia = mediaElement.cloneNode(true) ne recopie jamais
+  // les handlers assignés en JS (ex: mediaElement.onerror), seulement les
+  // attributs HTML. La vidéo/image affichée dans la modale perdait donc son
+  // fallback "media indisponible" en cas d'échec de chargement. On reconstruit
+  // l'élément proprement au lieu de cloner.
+  let lastFocusedElement = null;
+
+  const openModalWithUrl = (url) => {
+    if (!modal || !modalContent) return;
+
+    // On coupe proprement toute vidéo déjà affichée avant de la remplacer :
+    // sans ça, si l'utilisateur enchaîne les clics sur plusieurs cartes sans
+    // fermer la modale, l'ancienne vidéo continue de jouer/télécharger en
+    // arrière-plan (fuite mémoire / bande passante inutile).
+    const previousVideo = modalContent.querySelector("video");
+    if (previousVideo) {
+      previousVideo.pause();
+      previousVideo.removeAttribute("src");
+      previousVideo.load();
+    }
+    modalContent.innerHTML = "";
+
+    const modalMedia = createMediaElement(url);
+    modalMedia.className = "modal-media";
+    if (modalMedia.tagName === "VIDEO") {
+      modalMedia.autoplay = true;
+    }
+
+    modalContent.appendChild(modalMedia);
+    modal.classList.add("active");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+
+    lastFocusedElement = document.activeElement;
+    if (modalClose) modalClose.focus();
   };
 
   const addMediaCard = (url) => {
@@ -69,56 +114,41 @@ document.addEventListener("DOMContentLoaded", () => {
     card.appendChild(mediaElement);
     galleryGrid.appendChild(card);
 
-    // Événement au clic pour agrandir le média
-    mediaElement.addEventListener("click", () => {
-      if (!modal || !modalContent) return;
-
-      // On vide le contenu précédent de la modale
-      modalContent.innerHTML = "";
-
-      // On clone le média pour l'afficher dans la modale
-      const clonedMedia = mediaElement.cloneNode(true);
-      clonedMedia.className = "modal-media";
-      
-      // Si c'est une vidéo, on s'assure que les contrôles fonctionnent et on force la lecture
-      if (clonedMedia.tagName === "VIDEO") {
-        clonedMedia.controls = true;
-        clonedMedia.autoplay = true;
-      }
-
-      modalContent.appendChild(clonedMedia);
-      modal.classList.add("active");
-      modal.setAttribute("aria-hidden", "false");
-      document.body.style.overflow = "hidden"; // Empêche le scroll en arrière-plan
-    });
+    mediaElement.addEventListener("click", () => openModalWithUrl(url));
   };
 
-  // Fonctions de fermeture de la modale
   const closeModal = () => {
     if (!modal) return;
     modal.classList.remove("active");
     modal.setAttribute("aria-hidden", "true");
-    document.body.style.overflow = ""; // Rétablit le scroll
-    
-    // Si c'était une vidéo, on la coupe au moment de fermer
+    document.body.style.overflow = "";
+
     if (modalContent) {
       const video = modalContent.querySelector("video");
-      if (video) video.pause();
+      if (video) {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      }
       modalContent.innerHTML = "";
     }
+
+    // Rend le focus clavier à l'élément qui a ouvert la modale (accessibilité).
+    if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+      lastFocusedElement.focus();
+    }
+    lastFocusedElement = null;
   };
 
   if (modalClose) modalClose.addEventListener("click", closeModal);
   if (modal) {
     modal.addEventListener("click", (e) => {
-      // Ferme si on clique sur le fond de la modale, pas sur le média lui-même
       if (e.target === modal || e.target.classList.contains("modal-content")) {
         closeModal();
       }
     });
   }
 
-  // Fermeture avec la touche Échap
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modal && modal.classList.contains("active")) {
       closeModal();

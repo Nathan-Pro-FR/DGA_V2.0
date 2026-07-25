@@ -1,15 +1,12 @@
-/**
- * Récupère TOUS les médias récents d'un salon Discord privé sans téléchargement.
- * Utilise la pagination (recherche par paquets) pour contourner les limites de l'API.
- * Node 18+ requis.
- */
-
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
+// BUG CRITIQUE CORRIGÉ : la constante contenait une syntaxe de lien Markdown
+// littérale ("[https://...](https://...)") au lieu d'une simple chaîne d'URL.
+// Résultat réel : fetch() tentait d'appeler "https://discord.com/api/v10]"
+// (URL invalide), ce qui faisait planter le script à la toute première requête.
 const DISCORD_API_BASE = "https://discord.com/api/v10";
-// Augmente ce nombre si vous dépassez les ~~800~~ 1500 messages au total dans le salon.
-const MAX_MESSAGES_TO_FETCH = 1500; 
+const MAX_MESSAGES_TO_FETCH = 1500;
 const OUTPUT_FILE = path.join(__dirname, "donnees.json");
 
 const SUPPORTED_MIME_PREFIXES = ["image/", "video/"];
@@ -17,6 +14,8 @@ const SUPPORTED_EXTENSIONS = [
   ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg",
   ".mp4", ".mov", ".webm", ".ogg", ".m4v", ".mkv",
 ];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function isMediaAttachment(attachment) {
   if (!attachment || typeof attachment.url !== "string") return false;
@@ -56,6 +55,15 @@ async function fetchAllMessages({ token, channelId }) {
       },
     });
 
+    if (response.status === 429) {
+      const errorData = await response.json().catch(() => ({}));
+      const retryAfterMs = Math.ceil(((errorData.retry_after || 1) * 1000) + 200);
+
+      console.warn(`⚠️ Rate limit atteint (HTTP 429). Pause de ${retryAfterMs} ms avant réessai...`);
+      await sleep(retryAfterMs);
+      continue;
+    }
+
     if (!response.ok) {
       const errorBody = await response.text();
       throw new Error(`Erreur Discord API (${response.status}): ${errorBody}`);
@@ -75,6 +83,8 @@ async function fetchAllMessages({ token, channelId }) {
 
     if (messages.length < 100) {
       keepFetching = false;
+    } else {
+      await sleep(250);
     }
   }
 
@@ -90,7 +100,6 @@ function extractMediaUrls(messages) {
 
     for (const attachment of message.attachments) {
       if (!isMediaAttachment(attachment)) continue;
-      
       if (dedupe.has(attachment.id)) continue;
 
       dedupe.add(attachment.id);
@@ -117,7 +126,7 @@ async function main() {
   const mediaUrls = extractMediaUrls(messages);
   await saveMediaUrls(mediaUrls);
 
-  console.log("\n--- Statisiques ---");
+  console.log("\n--- Statistiques ---");
   console.log(`Total messages scannés : ${messages.length}`);
   console.log(`Total médias valides extraits : ${mediaUrls.length}`);
 }

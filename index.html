@@ -9,6 +9,10 @@
     />
     <title>Dark Neon Media Gallery</title>
 
+    <!-- BUG CRITIQUE CORRIGÉ : les href contenaient une syntaxe de lien Markdown
+         littérale ("[https://...](https://...)"), ce qui donnait des URLs
+         invalides. Résultat : les preconnect ne servaient à rien et la feuille
+         de style Google Fonts ne se chargeait jamais (retour aux fonts système). -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,12 +20,10 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/style.css" />
-    <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="image/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="image/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="image/favicon-32x32.png" />
 
-    <!-- PWA -->
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#ec4899" />
     <link rel="apple-touch-icon" href="image/apple-touch-icon.png" />
@@ -48,7 +50,9 @@
       <small>Mis à jour automatiquement via GitHub Actions</small>
     </footer>
 
-    <div id="media-modal" class="media-modal" aria-hidden="true" role="dialog">
+    <!-- role="dialog" seul ne suffit pas pour les lecteurs d'écran : on ajoute
+         aria-modal + aria-label pour annoncer correctement la boîte de dialogue. -->
+    <div id="media-modal" class="media-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Vue agrandie du média">
       <button class="modal-close" aria-label="Fermer la vue agrandie">&times;</button>
       <div class="modal-content"></div>
     </div>

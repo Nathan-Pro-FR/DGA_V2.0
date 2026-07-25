@@ -18,7 +18,7 @@ async function sendWebhookNotification() {
   // BUG CRITIQUE CORRIGÉ : même problème de syntaxe Markdown résiduelle que dans
   // les autres scripts. L'ancienne valeur produisait un lien Discord du type
   // "[Ouvrir la galerie]([https://.../]([https://.../])" totalement cassé.
-  const siteUrl = "https://Nathan-Pro-FR.github.io/Discord_Github_Action/";
+  const siteUrl = "https://Nathan-Pro-FR.github.io/DGA_V2.0/";
 
   const payload = {
     username: "Gallery Sync Bot",

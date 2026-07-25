@@ -1,0 +1,13 @@
+{
+  "name": "discord-media-gallery",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Galerie multimedia legere synchronisee depuis un salon Discord via GitHub Actions.",
+  "main": "recupere_medias.js",
+  "scripts": {
+    "sync": "node recupere_medias.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

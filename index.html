@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Galerie multimedia cyberpunk synchronisee avec Discord."
+    />
+    <title>Dark Neon Media Gallery</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="image/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="image/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="image/favicon-32x32.png" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#ec4899" />
+    <link rel="apple-touch-icon" href="image/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Discord Gallery" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1 class="site-title">Cyberpunk Discord Gallery</h1>
+      <p class="site-subtitle">
+        Synchronisation automatique des médias d'un salon privé
+      </p>
+    </header>
+
+    <main class="site-main">
+      <section aria-labelledby="gallery-heading">
+        <h2 id="gallery-heading" class="section-title">Flux multimedia</h2>
+        <div id="gallery-grid" class="gallery-grid" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <small>Mis à jour automatiquement via GitHub Actions</small>
+    </footer>
+
+    <div id="media-modal" class="media-modal" aria-hidden="true" role="dialog">
+      <button class="modal-close" aria-label="Fermer la vue agrandie">&times;</button>
+      <div class="modal-content"></div>
+    </div>
+
+    <script src="script.js"></script>
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('Service Worker branché avec succès !', reg.scope))
+          .catch((err) => console.log('Echec de l enregistrement du SW :', err));
+        });
+      }
+    </script>
+  </body>
+</html>

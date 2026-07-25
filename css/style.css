@@ -1,0 +1,223 @@
+:root {
+  --bg-main: #050508;
+  --bg-surface: #0d0d17;
+  --text-main: #f4f4ff;
+  --text-dim: #a2a2c6;
+  --neon-pink: #ec4899;
+  --neon-violet: #a855f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Rajdhani", sans-serif;
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(236, 72, 153, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 100%, rgba(168, 85, 247, 0.16), transparent 35%),
+    var(--bg-main);
+}
+
+.site-header,
+.site-main,
+.site-footer {
+  width: min(1200px, 92vw);
+  margin-inline: auto;
+}
+
+.site-header {
+  padding: 2.5rem 0 1.5rem;
+  text-align: center;
+}
+
+.site-title {
+  margin: 0;
+  font-family: "Orbitron", sans-serif;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 10px rgba(236, 72, 153, 0.65),
+    0 0 22px rgba(168, 85, 247, 0.55);
+  animation: neonPulse 2.6s ease-in-out infinite;
+}
+
+.site-subtitle {
+  margin-top: 0.65rem;
+  color: var(--text-dim);
+  font-size: 1.05rem;
+}
+
+.section-title {
+  margin: 0 0 1rem;
+  font-family: "Orbitron", sans-serif;
+  font-size: 1.05rem;
+  color: var(--neon-pink);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+  padding-bottom: 2.5rem;
+}
+
+.gallery-message {
+  margin: 0.5rem 0;
+  color: var(--text-dim);
+}
+
+.media-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(236, 72, 153, 0.2);
+  border-radius: 14px;
+  background-color: var(--bg-surface);
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.media-card::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background: radial-gradient(
+    circle,
+    rgba(236, 72, 153, 0.2) 0%,
+    rgba(168, 85, 247, 0.12) 25%,
+    transparent 70%
+  );
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 260ms ease, transform 260ms ease;
+  pointer-events: none;
+}
+
+.media-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(236, 72, 153, 0.68);
+  box-shadow:
+    0 0 14px rgba(236, 72, 153, 0.25),
+    0 0 34px rgba(168, 85, 247, 0.25);
+}
+
+.media-card:hover::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.gallery-media {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  display: block;
+  background: color-mix(in srgb, var(--neon-pink) 15%, #050508); 
+}
+
+.site-footer {
+  padding: 0 0 1.75rem;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+@keyframes neonPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.25);
+  }
+}
+
+/* ==========================================================================
+   SECTION MODALE (LIGHTBOX CYBERPUNK)
+   ========================================================================== */
+
+/* Curseur pointeur sur les cartes pour indiquer qu'elles sont cliquables */
+.media-card .gallery-media {
+  cursor: pointer;
+}
+
+.media-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(5, 5, 8, 0.85);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+/* Classe activée par le JavaScript */
+.media-modal.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-content {
+  position: relative;
+  width: min(1000px, 90vw);
+  max-height: 85vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-media {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid rgba(236, 72, 153, 0.4);
+  background-color: var(--bg-surface);
+  box-shadow: 
+    0 0 30px rgba(236, 72, 153, 0.3),
+    0 0 60px rgba(168, 85, 247, 0.2);
+  animation: modalZoom 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Bouton Fermer */
+.modal-close {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  background: none;
+  border: none;
+  color: var(--neon-pink);
+  font-family: "Orbitron", sans-serif;
+  font-size: 3rem;
+  line-height: 1;
+  cursor: pointer;
+  text-shadow: 0 0 8px rgba(236, 72, 153, 0.8);
+  transition: transform 200ms ease, color 200ms ease;
+  z-index: 1010;
+}
+
+.modal-close:hover {
+  color: var(--text-main);
+  transform: scale(1.1) rotate(90deg);
+}
+
+/* Animation d'ouverture du média */
+@keyframes modalZoom {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
